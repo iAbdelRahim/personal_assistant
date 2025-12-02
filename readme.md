@@ -84,3 +84,10 @@ The ingestion form expects a PDF path that the backend container/process can rea
 - All core logic lives in `backend/` (document processing, embeddings, vector stores, retrieval, pipelines, helpers).
 - `utils.py` re-exports the most common helpers for notebooks/experiments.
 - `main.py` initializes shared resources at startup (embeddings, Qdrant client, Ollama LLM, semantic cache) and exposes ingestion/query/list/health endpoints.
+
+## TODO
+
+- Add query routing for simple questions
+- Add chat memory
+- Add user authentication and user sessions
+- Add voice capabilities (STT → RAG pipeline → TTS)
