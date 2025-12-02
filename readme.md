@@ -12,6 +12,15 @@ pip install -r requirements.txt
 
 Optional heavy deps (Docling, transformers, GPU extras) are already listed; drop what you do not need.
 
+## Tech Stack
+
+- **FastAPI** for the HTTP API with request validation and async background execution.
+- **LangChain** (+ Flashrank, HuggingFace embeddings, LangGraph-ready components) for chunking, hybrid retrieval, and LLM orchestration.
+- **Qdrant** as the dense+sparse vector store with hybrid retrieval and cache-friendly collection management.
+- **Ollama** hosting the default LLM (swappable via `LLM_*` env vars), automatically pulled in Docker.
+- **Docling / PyPDF / Tesseract / pdf2image** for high-fidelity PDF parsing, OCR, and quality scoring.
+- **Docker & Docker Compose** to run the API + Qdrant + Ollama stack locally with persistent volumes.
+
 ## Environment
 
 Duplicate `.env` and edit the values for your setup (Qdrant URL/API key, embedding model/device, Ollama model/base URL, etc.).  
