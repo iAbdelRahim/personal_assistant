@@ -60,6 +60,17 @@ What you get:
 
 The helper service `ollama-init` automatically pulls the model referenced by `LLM_MODEL` (falls back to `llama3.2`) before the API starts. Adjust `.env` before running to pick a different model, tweak PDF/embedding settings, etc.
 
+## Streamlit Frontend
+
+A lightweight UI lives in `frontend/app.py`. Launch it (while the API is running) with:
+
+```bash
+streamlit run frontend/app.py
+```
+
+Environment variable `API_BASE_URL` controls which backend instance the UI calls (defaults to `http://localhost:8000`).  
+The ingestion form expects a PDF path that the backend container/process can reach, and the query form can either target a specific collection or search across all collections in parallel.
+
 ## Customizing
 
 - `PDF_*` env vars control DPI, workers, fast mode, and page caps. Set `PDF_MAX_WORKERS` no higher than your CPU thread count to avoid thrashing, and raise `PDF_DPI` when you need higher-fidelity OCR (at the cost of slower processing and more memory).
