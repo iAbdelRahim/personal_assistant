@@ -49,7 +49,7 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 Spin up the entire stack (FastAPI API, Qdrant with persistent storage, and Ollama with model auto-pull) via:
 
 ```bash
-docker compose up --build
+docker compose up --build -d
 ```
 
 What you get:
