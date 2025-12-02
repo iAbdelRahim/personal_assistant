@@ -1,0 +1,52 @@
+name: personal_assistant
+services:
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+
+  ollama-init:
+    image: ollama/ollama:latest
+    depends_on:
+      - ollama
+    env_file:
+      - .env
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    command: >
+      /bin/sh -c "sleep 5 && ollama pull ${LLM_MODEL:-llama3.2}"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: "no"
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    restart: unless-stopped
+    ports:
+      - "6333:6333"
+    volumes:
+      - ./qdrant_storage:/qdrant/storage
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      qdrant:
+        condition: service_started
+      ollama-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      QDRANT_URL: http://qdrant:6333
+      LLM_BASE_URL: http://ollama:11434
+    ports:
+      - "8000:8000"
+
+volumes:
+  ollama_data:
