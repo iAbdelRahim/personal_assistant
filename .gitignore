@@ -10,6 +10,8 @@ env/
 
 # Environment / secrets
 .env
+.env.*
+!.env.example
 
 # Python tooling caches
 .pytest_cache/
@@ -32,6 +34,7 @@ build/
 # Data / storage
 qdrant_storage/
 ollama_data/
+uploads/
 
 # Logs
 *.log

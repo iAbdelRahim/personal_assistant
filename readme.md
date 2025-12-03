@@ -12,6 +12,9 @@ pip install -r requirements.txt
 
 Optional heavy deps (Docling, transformers, GPU extras) are already listed; drop what you do not need.
 
+Copy `.env.example` to `.env` (or set the variables in your process) before running anything.  
+`UPLOAD_DIR` controls where uploaded PDFs are stored temporarily so both the Streamlit frontend and the FastAPI backend can read them (defaults to `/app/uploads`). When using Docker, the `./uploads` directory on the host is mounted into both containers.
+
 ## Tech Stack
 
 - **FastAPI** for the HTTP API with request validation and async background execution.
@@ -58,6 +61,7 @@ What you get:
 - Streamlit UI → `http://localhost:8501`
 - Qdrant → `http://localhost:6333` with data persisted under `./qdrant_storage`
 - Ollama → `http://localhost:11434` with models persisted in the `ollama_data` Docker volume
+- Shared uploads folder → host `./uploads` mounted as `/app/uploads` inside API + frontend containers
 
 The helper service `ollama-init` automatically pulls the model referenced by `LLM_MODEL` (falls back to `llama3.2`) before the API starts. Adjust `.env` before running to pick a different model, tweak PDF/embedding settings, etc.
 
@@ -70,7 +74,7 @@ streamlit run frontend/app.py
 ```
 
 Environment variable `API_BASE_URL` controls which backend instance the UI calls (defaults to `http://localhost:8000`; in Docker Compose it is auto-set to the internal API service).  
-The ingestion form expects a PDF path that the backend container/process can reach, and the query form can either target a specific collection or search across all collections in parallel.
+The ingestion form now supports direct PDF uploads: files are saved into `UPLOAD_DIR` (shared with the API) before calling `/ingest`, and you can still provide a manual path if needed. The query form can target a specific collection or search across all collections in parallel.
 
 ## Customizing
 
@@ -79,6 +83,7 @@ The ingestion form expects a PDF path that the backend container/process can rea
 - `DEFAULT_COLLECTION_PREFIX` changes automatic collection slugs (derived from filenames).
 - `CACHE_MAX_SIZE` / `CACHE_SIMILARITY` tune the semantic cache.
 - `LLM_*` picks the provider/model/base URL; with Docker compose it defaults to the in-network Ollama service.
+- `UPLOAD_DIR` defines where temporary uploads live (ensure the directory exists and is mounted/shared if you run multiple services).
 
 ## Development Notes
 
