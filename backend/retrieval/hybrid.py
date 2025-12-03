@@ -6,9 +6,8 @@ from langchain_community.document_compressors import FlashrankRerank
 from langchain_core.documents import Document
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import PromptTemplate
-from langchain_core.runnables import RunnableLambda, RunnablePassthrough
+from langchain_core.runnables import Runnable, RunnableLambda, RunnablePassthrough
 from langchain_qdrant import QdrantVectorStore
-from langchain.schema.runnable import Runnable
 from langchain_classic.retrievers.contextual_compression import ContextualCompressionRetriever
 from qdrant_client import models
 

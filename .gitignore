@@ -10,7 +10,6 @@ env/
 
 # Environment / secrets
 .env
-.env.*
 
 # Python tooling caches
 .pytest_cache/

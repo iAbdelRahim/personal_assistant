@@ -55,6 +55,7 @@ docker compose up --build -d
 What you get:
 
 - API → `http://localhost:8000`
+- Streamlit UI → `http://localhost:8501`
 - Qdrant → `http://localhost:6333` with data persisted under `./qdrant_storage`
 - Ollama → `http://localhost:11434` with models persisted in the `ollama_data` Docker volume
 
@@ -68,7 +69,7 @@ A lightweight UI lives in `frontend/app.py`. Launch it (while the API is running
 streamlit run frontend/app.py
 ```
 
-Environment variable `API_BASE_URL` controls which backend instance the UI calls (defaults to `http://localhost:8000`).  
+Environment variable `API_BASE_URL` controls which backend instance the UI calls (defaults to `http://localhost:8000`; in Docker Compose it is auto-set to the internal API service).  
 The ingestion form expects a PDF path that the backend container/process can reach, and the query form can either target a specific collection or search across all collections in parallel.
 
 ## Customizing
