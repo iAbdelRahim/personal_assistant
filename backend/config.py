@@ -53,6 +53,7 @@ class AppConfig:
     embedding_model: str = "google/embeddinggemma-300m"
     embedding_device: str = "cpu"
     default_collection_prefix: str = "doc"
+    open_mode: bool = True
 
     @classmethod
     def from_env(cls) -> "AppConfig":
@@ -95,6 +96,7 @@ class AppConfig:
             embedding_model=os.getenv("EMBEDDING_MODEL", "google/embeddinggemma-300m"),
             embedding_device=os.getenv("EMBEDDING_DEVICE", "cpu"),
             default_collection_prefix=os.getenv("DEFAULT_COLLECTION_PREFIX", "doc"),
+            open_mode=os.getenv("OPEN_MODE", "true").lower() == "true",
         )
 
 

@@ -12,17 +12,30 @@ pip install -r requirements.txt
 
 Optional heavy deps (Docling, transformers, GPU extras) are already listed; drop what you do not need.
 
-Copy `.env.example` to `.env` (or set the variables in your process) before running anything.  
-`UPLOAD_DIR` controls where uploaded PDFs are stored temporarily so both the Streamlit frontend and the FastAPI backend can read them (defaults to `/app/uploads`). When using Docker, the `./uploads` directory on the host is mounted into both containers.
+Copy `.env.example` to `.env` before running anything—the backend calls `load_dotenv()` at startup so it automatically picks up that file.  
+`UPLOAD_DIR` controls where uploaded PDFs are stored temporarily so both the Streamlit frontend and the FastAPI backend can read them (defaults to `/app/uploads`). When using Docker, the `./uploads` directory on the host is mounted into both containers.  
+`OPEN_MODE` (default `true`) keeps the current HuggingFace embedding + Ollama LLM stack. Set it to `false` to switch to Gemini embeddings/LLM (requires `GEMINI_API_KEY`, `GEMINI_EMBEDDING_MODEL`, and `GEMINI_LLM_MODEL`).
+
+> ⚠️ **Performance disclaimer:** The ingestion pipeline is CPU-heavy (OCR, chunking, embeddings). Processing speed scales with your hardware—more CPU threads, faster disks, and GPUs will dramatically reduce runtime, while smaller machines will see longer ingest/query times.
 
 ## Tech Stack
 
 - **FastAPI** for the HTTP API with request validation and async background execution.
-- **LangChain** (+ Flashrank, HuggingFace embeddings, LangGraph-ready components) for chunking, hybrid retrieval, and LLM orchestration.
+- **LangChain** (+ Flashrank, HuggingFace/Gemini embeddings, LangGraph-ready components) for chunking, hybrid retrieval, and LLM orchestration.
 - **Qdrant** as the dense+sparse vector store with hybrid retrieval and cache-friendly collection management.
 - **Ollama** hosting the default LLM (swappable via `LLM_*` env vars), automatically pulled in Docker.
 - **Docling / PyPDF / Tesseract / pdf2image** for high-fidelity PDF parsing, OCR, and quality scoring.
-- **Docker & Docker Compose** to run the API + Qdrant + Ollama stack locally with persistent volumes.
+- **Streamlit** for the upload-aware ingestion UI and ChatGPT-style QA interface.
+- **Docker & Docker Compose** to run the API + Qdrant + Ollama + Streamlit stack locally with persistent volumes.
+
+## Architecture Overview
+
+1. **Document processing** (`backend/document_processing/`): inspects PDF operators, extracts text with PyPDF when possible, escalates to Tesseract/Docling OCR, and attaches quality metrics before emitting normalized page records.
+2. **Semantic chunking** (`backend/embeddings/`): feeds pages into LangChain’s `SemanticChunker`, backed by HuggingFace embeddings in open mode or Gemini embeddings when `OPEN_MODE=false`; chunks keep metadata like source path, page numbers, and extraction method.
+3. **Vector database** (`backend/vectorstores/`): provisions Qdrant collections per document with dense + sparse vectors for hybrid retrieval, guards against duplicate collection names, and surfaces `/collections` for discovery.
+4. **Pipelines** (`backend/pipelines/`): ingestion orchestrates processing → chunking → Qdrant ingestion; QA pipelines combine Flashrank reranking, contextual compression retrievers, and a semantic cache to shortcut similar queries.
+5. **Retrieval + LLM** (`backend/retrieval/`, `main.py`): LangChain chains format context, call either Ollama or Gemini chat models, and return answers with latency/cache diagnostics; `/query` supports single-collection or parallel multi-collection search.
+6. **Frontend** (`frontend/app.py`): Streamlit handles file uploads (saved to `UPLOAD_DIR`), exposes ingestion parameters, and provides a chat interface with persistent history and adjustable retrieval settings.
 
 ## Environment
 
@@ -37,15 +50,17 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
 ### Endpoints
 
-- `POST /ingest` – Body `{"file_path": "...", "collection_name": "optional-name"}`  
-  Executes PDF processing → semantic chunking → embedding → Qdrant ingestion. If the resolved collection already exists the API raises `409 Conflict` to prevent duplicate uploads.
+- `POST /ingest` (Body `{ "file_path": "...", "collection_name": "optional-name" }`)
+  Runs PDF processing -> semantic chunking -> embedding -> Qdrant ingest. Duplicate collection names trigger `409 Conflict`.
 
-- `POST /query` – Body `{"query": "...", "collection_name": "optional-name", "use_cache": true, "search_all_collections": false}`  
-  Runs hybrid retrieval (dense+BM25, Flashrank rerank) and feeds the result to the configured LLM (default: Ollama). When `search_all_collections` is `true`, the API queries every collection in parallel, merges the contexts, and labels the response as coming from “all” collections. Returns answer text plus latency/cache stats.
+- `POST /query` (Body `{ "query": "...", "collection_name": "optional-name", "use_cache": true, "search_all_collections": false }`)
+  Performs hybrid dense+sparse retrieval (Flashrank rerank) and sends the context to the configured LLM. Set `search_all_collections=true` to query every collection in parallel and merge the results.
 
-- `GET /collections` – Lists every Qdrant collection so clients can choose which dataset to query.
+- `GET /collections`
+  Lists every Qdrant collection so clients can choose which dataset to query.
 
-- `GET /health` – Basic readiness plus last-selected collection and collection count.
+- `GET /health`
+  Basic readiness plus last-selected collection and collection count.
 
 ## Docker Compose
 
@@ -83,7 +98,10 @@ The ingestion form now supports direct PDF uploads: files are saved into `UPLOAD
 - `DEFAULT_COLLECTION_PREFIX` changes automatic collection slugs (derived from filenames).
 - `CACHE_MAX_SIZE` / `CACHE_SIMILARITY` tune the semantic cache.
 - `LLM_*` picks the provider/model/base URL; with Docker compose it defaults to the in-network Ollama service.
+- `OPEN_MODE=false` swaps the pipeline to Gemini embeddings/LLM; configure the Gemini API key and model names via `GEMINI_*` variables.
 - `UPLOAD_DIR` defines where temporary uploads live (ensure the directory exists and is mounted/shared if you run multiple services).
+
+> ⚠️ **Gemini quota note:** Google’s Gemini free tier enforces tight rate/usage limits. If you run with `OPEN_MODE=false` using the free tier, you may encounter quota errors during large ingestions or multi-query chat sessions—upgrade your plan or throttle usage accordingly.
 
 ## Development Notes
 

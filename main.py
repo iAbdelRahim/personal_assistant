@@ -10,6 +10,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_ollama import ChatOllama
 
 from backend.config import AppConfig, PDFProcessingConfig, VectorStoreConfig
@@ -71,11 +72,21 @@ class CollectionsResponse(BaseModel):
 
 
 def _init_llm(config: AppConfig):
-    if config.llm.provider == "ollama":
+    provider = config.llm.provider
+    if provider == "ollama":
         kwargs = {"model": config.llm.model_name, "temperature": config.llm.temperature}
         if config.llm.base_url:
             kwargs["base_url"] = config.llm.base_url
         return ChatOllama(**kwargs)
+    if provider == "gemini":
+        api_key = os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            raise ValueError("GEMINI_API_KEY is required when using the Gemini provider.")
+        return ChatGoogleGenerativeAI(
+            model=config.llm.model_name,
+            temperature=config.llm.temperature,
+            google_api_key=api_key,
+        )
     raise ValueError(f"Unsupported LLM provider: {config.llm.provider}")
 
 
@@ -102,8 +113,13 @@ def _vector_config(base: VectorStoreConfig) -> VectorStoreConfig:
 @app.on_event("startup")
 def startup_event():
     settings = AppConfig.from_env()
+    if not settings.open_mode:
+        settings.llm.provider = "gemini"
+        settings.llm.model_name = os.getenv("GEMINI_LLM_MODEL", settings.llm.model_name or "gemini-2.5-flash")
+        settings.embedding_model = os.getenv("GEMINI_EMBEDDING_MODEL", "models/gemini-embedding-001")
     app.state.config = settings
-    app.state.embedding_model = init_embedding_model(settings.embedding_model, settings.embedding_device)
+    embedding_provider = "huggingface" if settings.open_mode else "gemini"
+    app.state.embedding_model = init_embedding_model(settings.embedding_model, settings.embedding_device, embedding_provider)
     app.state.semantic_chunker = build_semantic_chunker(
         app.state.embedding_model,
         breakpoint_threshold_type=settings.chunking.breakpoint_threshold_type,
@@ -120,6 +136,7 @@ def startup_event():
     app.state.vectorstores: Dict[str, Any] = {}
     app.state.retrievers: Dict[str, Any] = {}
     app.state.last_collection: Optional[str] = None
+    app.state.open_mode = settings.open_mode
     try:
         app.state.collections = list_collections(app.state.qdrant_client)
     except Exception:
