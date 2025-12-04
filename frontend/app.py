@@ -31,7 +31,7 @@ def fetch_collections() -> List[str]:
 
 def ingest_document(payload: Dict) -> Optional[Dict]:
     try:
-        response = requests.post(_api_url("/ingest"), json=payload, timeout=300)
+        response = requests.post(_api_url("/ingest"), json=payload, timeout=1800)
         response.raise_for_status()
         return response.json()
     except requests.RequestException as exc:
@@ -43,7 +43,7 @@ def ingest_document(payload: Dict) -> Optional[Dict]:
 
 def query_documents(payload: Dict) -> Optional[Dict]:
     try:
-        response = requests.post(_api_url("/query"), json=payload, timeout=120)
+        response = requests.post(_api_url("/query"), json=payload, timeout=300)
         response.raise_for_status()
         return response.json()
     except requests.RequestException as exc:
@@ -144,7 +144,7 @@ def main():
         with clear_col1:
             if st.button("Clear chat"):
                 st.session_state.chat_history = []
-                st.experimental_rerun()
+                st.rerun()
 
         user_query = st.chat_input("Ask a question")
 
@@ -170,7 +170,7 @@ def main():
                         f"{result['answer']}"
                     )
                     st.session_state.chat_history.append({"role": "assistant", "content": answer_md})
-                    st.experimental_rerun()
+                    st.rerun()
 
 
 def save_uploaded_file(uploaded_file) -> str:
